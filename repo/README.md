@@ -1,56 +1,84 @@
-# Modern Web Application Monorepo (2025)
+# TeamTrack Monorepo
 
-This repository implements a modern web application architecture with a Next.js 16 frontend, NestJS backend, Prisma ORM, Redis/BullMQ worker, and related configurations.
+This repository implements the reference architecture from `system-architecture.md` with a batteries-included monorepo. It provides:
 
-## Prerequisites
-- Node.js 18 or higher
-- PostgreSQL database
-- Redis server
-- Docker (optional, for containerized deployment)
+- **Backend API (`apps/api`)** – NestJS + Fastify, Prisma ORM, PostgreSQL, Swagger docs and structured logging.
+- **Frontend Web (`apps/web`)** – Next.js App Router, Tailwind CSS styling, React Query integration, and runtime calls to the API.
+- **Background Worker (`apps/worker`)** – BullMQ-based queue processor backed by Redis with a demo job.
 
-## Setting up Backend API
-1. Navigate to `apps/api`
-2. Create `.env` file with environment variables:
-  ```
-  DATABASE_URL=postgresql://user:password@localhost:5432/dbname
-  REDIS_URL=redis://localhost:6379
-  ```
+The repository uses npm workspaces so dependencies are isolated per app while sharing a single lockfile.
 
-3. Install dependencies:
-  ```bash
-  npm install
-  ```
-4. Run Prisma migrations (for initial schema):
-  ```bash
-  npx prisma migrate dev --name init
-  ```
-5. Start development server:
-  ```bash
-  npm run start:dev
-  ```
+## Getting Started
 
-## Setting up Frontend Web
-1. Navigate to `apps/web`
-2. Install dependencies:
-  ```bash
-  npm install
-  ```
-3. Start development server:
-  ```bash
-  npm run dev
-  ```
+1. Install dependencies from the repository root:
 
-## Worker (background jobs)
-*Not implemented in this minimal version but expected to be in `apps/worker`.*
+   ```bash
+   npm install
+   ```
 
-## Docker
-- Backend Dockerfile available at `apps/api/Dockerfile` for containerized deployment.
+2. Configure environment variables by copying the provided examples:
 
-## Notes
-- Swagger/OpenAPI support planned for backend API documentation.
-- The code uses TypeScript, Prisma ORM, NestJS with Fastify, Next.js and Tailwind CSS.
-- Deployment target is Kubernetes or PaaS platforms.
+   ```bash
+   cp apps/api/.env.example apps/api/.env
+   cp apps/web/.env.example apps/web/.env
+   cp apps/worker/.env.example apps/worker/.env
+   ```
 
----
+3. Make sure you have PostgreSQL and Redis running locally. Update the `.env` files if you use non-default credentials.
 
-This minimal runnable example provides a foundation on which to build the full architecture detailed in the system document.
+4. Generate the Prisma client and apply migrations:
+
+   ```bash
+   cd apps/api
+   npx prisma migrate dev --name init
+   cd ../..
+   ```
+
+5. Start the full stack (API + Web) from the repo root:
+
+   ```bash
+   npm run dev
+   ```
+
+   - API available at `http://localhost:3000` with Swagger docs under `/docs`.
+   - Web app available at `http://localhost:3001` when started separately (see below). The combined `npm run dev` command runs both concurrently, keeping ports configurable.
+
+6. (Optional) Start the worker to process BullMQ jobs:
+
+   ```bash
+   npm run dev:worker
+   ```
+
+### Running apps individually
+
+- API only: `npm run dev:api`
+- Web only: `npm run dev:web`
+- Worker only: `npm run dev:worker`
+
+### Linting and formatting
+
+```bash
+npm run lint    # runs lint for api and web
+npm run format  # prettier across the monorepo
+```
+
+## Project Structure
+
+```
+repo/
+├── apps/
+│   ├── api/        # NestJS backend (REST API + Prisma)
+│   ├── web/        # Next.js frontend (App Router)
+│   └── worker/     # BullMQ worker for background jobs
+├── package.json    # npm workspaces configuration
+├── prettier.config.cjs
+└── system-architecture.md
+```
+
+Each app contains its own `package.json`, TypeScript config, and environment sample file.
+
+## Next Steps
+
+- Flesh out domain modules (projects, tasks, orgs) following the modular NestJS pattern.
+- Expand shared packages for DTOs/types if multi-app sharing increases.
+- Add automated tests (unit + integration) and GitHub Actions CI as outlined in the architecture document.
