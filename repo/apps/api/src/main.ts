@@ -1,38 +1,53 @@
+import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import helmet from '@fastify/helmet';
+import cors from '@fastify/cors';
 import { Logger } from 'nestjs-pino';
-import helmet from 'fastify-helmet';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
+import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
     {
-      logger: ['error', 'warn', 'log', 'debug'],
+      bufferLogs: true,
     },
   );
 
-  // Security headers
-  await app.register(helmet, {
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", 'fonts.googleapis.com'],
-        imgSrc: ["'self'", 'data:'],
-        connectSrc: ["'self'"],
-      },
-    },
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>('PORT', 3000);
+  const host = configService.get<string>('HOST', '0.0.0.0');
+
+  await app.register(helmet);
+  await app.register(cors, {
+    origin: configService.get('CORS_ORIGIN', '*'),
   });
 
-  // Global prefix for API versioning
-  app.setGlobalPrefix('v1');
-
-  // Use pino logger
   app.useLogger(app.get(Logger));
+  app.enableShutdownHooks();
+  app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
 
-  await app.listen(3000, '0.0.0.0');
-  console.log('API server running on http://localhost:3000');
+  const config = new DocumentBuilder()
+    .setTitle('TeamTrack API')
+    .setDescription('REST API for the TeamTrack platform')
+    .setVersion('1.0.0')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document);
+
+  await app.listen({ port, host });
+  app.log.info(`🚀 API server running on http://${host}:${port}`);
 }
+
 bootstrap();

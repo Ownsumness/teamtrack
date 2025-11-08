@@ -1,14 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient, User } from '@prisma/client';
-import { PrismaClient as Prisma } from '@prisma/client';
-import { Inject } from '@nestjs/common';
+
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UserResponseDto } from './dto/user-response.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(@Inject(PrismaClient) private prisma: Prisma) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(): Promise<User[]> {
-    // In real app, add pagination, tenant filtering, etc.
-    return this.prisma.user.findMany();
+  async findAll(): Promise<UserResponseDto[]> {
+    return this.prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
+  }
+
+  async create(payload: CreateUserDto): Promise<UserResponseDto> {
+    return this.prisma.user.create({ data: payload });
   }
 }
